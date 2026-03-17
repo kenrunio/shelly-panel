@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <title>Shelly Panel</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -13,11 +13,11 @@
       --bg:       #000;
       --card-bg:  #0a0a0a;
       --border:   #1a1a1a;
-      --label:    #555;
-      --unit:     #444;
+      --label:    #aaa;
+      --unit:     #777;
       --on-text:  #f0b040;
       --on-icon:  #e8a020;
-      --off-text: #333;
+      --off-text: #fff;
     }
 
     html, body {
@@ -33,10 +33,9 @@
       display: flex;
       flex-direction: column;
       height: 100dvh;
-      height: 100vh; /* fallback */
+      height: 100vh;
     }
 
-    /* ── Main panel: 3 columns ── */
     .panel {
       flex: 1;
       display: flex;
@@ -66,14 +65,14 @@
       position: relative;
     }
 
-    .card-icon   { color: #333; flex-shrink: 0; }
-    .card-label  { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; color: var(--label); }
-    .card-unit   { font-size: 16px; font-weight: 300; color: var(--unit); }
+    .card-icon   { color: #ccc; flex-shrink: 0; }
+    .card-label  { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; color: var(--label); text-align: center; }
+    .card-unit   { font-size: 18px; font-weight: 300; color: var(--unit); }
     .card-sub    { font-size: 11px; color: var(--label); }
 
     .value-row   { display: flex; align-items: baseline; gap: 3px; line-height: 1; }
-    .card-value  { font-size: 48px; font-weight: 100; letter-spacing: -2px; }
-    .card-value.md { font-size: 36px; letter-spacing: -1px; }
+    .card-value  { font-size: 64px; font-weight: 100; letter-spacing: -3px; }
+    .card-value.md { font-size: 48px; letter-spacing: -2px; }
 
     /* Boiler states */
     .state-on  .card-value { color: var(--on-text); }
@@ -81,15 +80,41 @@
     .state-off .card-value { color: var(--off-text); }
 
     /* Weather card */
-    .weather-icon { color: #aaa; }
-    .weather-desc { font-size: 11px; color: #666; letter-spacing: 0.5px; text-transform: uppercase; }
-    .weather-range {
-      font-size: 32px; font-weight: 100; letter-spacing: -1px;
-      display: flex; align-items: baseline; gap: 8px;
+    .weather-icon { color: #fff; }
+    .weather-city { font-size: 13px; font-weight: 500; color: #fff; letter-spacing: 0.5px; text-transform: uppercase; }
+    .weather-desc { font-size: 10px; color: #888; letter-spacing: 0.5px; text-transform: uppercase; }
+    .weather-hilo {
+      font-size: 15px; font-weight: 200;
+      display: flex; align-items: baseline; gap: 6px;
     }
-    .range-sep   { font-size: 20px; color: #333; }
-    .range-min   { color: #4a9eff; }
-    .range-max   { color: #ff6b4a; }
+    .hilo-sep  { color: #333; }
+    .range-min { color: #4a9eff; }
+    .range-max { color: #ff6b4a; }
+    .sun-row  { display: flex; width: 100%; justify-content: space-around; }
+    .sun-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .sun-time { font-size: 40px; font-weight: 100; letter-spacing: -2px; }
+    #moon-svg { display: block; flex-shrink: 0; }
+    /* Pin sub-labels to the bottom so they don't shift values upward */
+    #card-weather-cur .weather-hilo { position: absolute; bottom: 10px; }
+    #card-boiler      .card-sub     { position: absolute; bottom: 10px; }
+    .hebrew-date    { font-size: 13px; font-weight: 500; color: #fff; letter-spacing: 0.5px; text-transform: uppercase; text-align: center; }
+    .jewish-holiday { font-size: 10px; color: #888; letter-spacing: 0.5px; text-transform: uppercase; text-align: center; }
+    /* Moon card: date/holiday pinned to bottom, label+SVG flex-center as a group */
+    #card-weather-info #hebrew-date    { position: absolute; bottom: 22px; }
+    #card-weather-info .jewish-holiday { position: absolute; bottom: 7px; }
+    /* Stacked sun times card */
+    #card-sun-times { gap: 10px; }
+    /* Pin city/desc to the bottom so the weather icon alone flex-centers */
+    #card-weather-icon .weather-city { position: absolute; bottom: 22px; }
+    #card-weather-icon .weather-desc { position: absolute; bottom: 8px; }
+
+    /* Portrait: 4 rows × 2 cards */
+    @media (orientation: portrait) {
+      .panel { flex-direction: column; }
+      .col   { flex-direction: row; }
+      #weather-svg { width: 66px; height: 66px; }
+      #moon-svg    { width: 60px; height: 60px; }
+    }
 
     /* Status bar */
     .status-bar {
@@ -138,29 +163,18 @@
 
   </div>
 
-  <!-- ── MIDDLE COLUMN: boiler timers + power ── -->
+  <!-- ── MIDDLE COLUMN: boiler + power ── -->
   <div class="col">
 
-    <div class="card" id="card-timer1">
+    <div class="card" id="card-boiler">
       <svg class="card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
-      <div class="card-label">Boiler</div>
+      <div class="card-label" id="boiler-label">Boiler</div>
       <div class="value-row">
-        <div class="card-value md" id="timer1-value">—</div>
+        <div class="card-value" id="boiler-value">—</div>
       </div>
-      <div class="card-sub" id="timer1-sub"></div>
-    </div>
-
-    <div class="card" id="card-timer2">
-      <svg class="card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
-      <div class="card-label">Backup</div>
-      <div class="value-row">
-        <div class="card-value md" id="timer2-value">—</div>
-      </div>
-      <div class="card-sub" id="timer2-sub"></div>
+      <div class="card-sub" id="boiler-sub"></div>
     </div>
 
     <div class="card" id="card-power">
@@ -169,31 +183,69 @@
       </svg>
       <div class="card-label">Power</div>
       <div class="value-row">
-        <div class="card-value md" id="power-value">—</div>
-        <div class="card-unit">W</div>
+        <div class="card-value" id="power-value">—</div>
+        <div class="card-unit">kW</div>
       </div>
     </div>
 
   </div>
 
-  <!-- ── RIGHT COLUMN: weather ── -->
+  <!-- ── COL 3: weather icon + sun/moon ── -->
   <div class="col">
 
     <div class="card" id="card-weather-icon">
-      <svg class="weather-icon" id="weather-svg" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="card-label">Today's Forecast</div>
+      <svg class="weather-icon" id="weather-svg" width="90" height="90" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <!-- filled by JS -->
       </svg>
+      <div class="weather-city" id="weather-city">—</div>
       <div class="weather-desc" id="weather-desc">—</div>
     </div>
 
-    <div class="card" id="card-weather-range">
-      <div class="card-label">Today</div>
-      <div class="weather-range">
+    <div class="card" id="card-weather-cur">
+      <svg class="card-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+      </svg>
+      <div class="card-label">Temperature</div>
+      <div class="value-row">
+        <div class="card-value" id="weather-cur">—</div>
+        <div class="card-unit">°C</div>
+      </div>
+      <div class="weather-hilo">
         <span class="range-min" id="weather-min">—</span>
-        <span class="range-sep">/</span>
+        <span class="hilo-sep">-</span>
         <span class="range-max" id="weather-max">—</span>
       </div>
-      <div class="card-sub">°C</div>
+    </div>
+
+  </div>
+
+  <!-- ── COL 4: moon (top) + sun times (bottom) ── -->
+  <div class="col">
+
+    <div class="card" id="card-weather-info">
+      <div class="card-label" id="moon-name">—</div>
+      <svg id="moon-svg" width="90" height="90" viewBox="0 0 80 80"></svg>
+      <div class="hebrew-date" id="hebrew-date"></div>
+      <div class="jewish-holiday" id="jewish-holiday"></div>
+    </div>
+
+    <div class="card" id="card-sun-times">
+      <div class="sun-item">
+        <svg class="card-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 15 A7 7 0 0 1 19 15"/>
+          <line x1="2" y1="15" x2="22" y2="15"/>
+          <line x1="12" y1="3" x2="12" y2="6"/>
+          <line x1="19.2" y1="6.8" x2="17.1" y2="8.5"/>
+          <line x1="4.8" y1="6.8" x2="6.9" y2="8.5"/>
+        </svg>
+        <div class="card-label">Sunrise</div>
+        <div class="sun-time" id="weather-sunrise">—</div>
+      </div>
+      <div class="sun-item">
+        <div class="card-label">Sunset</div>
+        <div class="sun-time" id="weather-sunset">—</div>
+      </div>
     </div>
 
   </div>
@@ -207,6 +259,7 @@
     <div class="dot" id="dot-76"></div>
     <div class="dot" id="dot-77"></div>
     <div class="dot" id="dot-wx"></div>
+    <div class="dot" id="dot-hc"></div>
   </div>
   <div class="last-update" id="last-update"></div>
 </div>
@@ -218,13 +271,13 @@
     boiler1: '192.168.68.76',
     boiler2: '192.168.68.77',
   };
-  const AUTO_OFF_DELAY   = 4800;   // seconds, fallback
-  const SHELLY_INTERVAL  = 15000;  // ms
-  const WEATHER_INTERVAL = 20 * 60 * 1000; // 20 min
+  const AUTO_OFF_DELAY   = 4800;
+  const SHELLY_INTERVAL  = 15000;
+  const WEATHER_INTERVAL = 20 * 60 * 1000;
 
-  // Modiin-Maccabim-Re'ut, Israel
-  const WEATHER_LAT = 31.8969;
-  const WEATHER_LON = 35.0100;
+  const WEATHER_LAT  = 31.8969;
+  const WEATHER_LON  = 35.0100;
+  const WEATHER_CITY = 'Modiin';
 
   // ── Countdown state ─────────────────────────────────────
   let boiler1 = { remaining: null, fetchedAt: null };
@@ -260,29 +313,59 @@
     return fetchWithTimeout('http://' + ip + '/script/1/status', 5000);
   }
 
-  // ── Boiler card update ───────────────────────────────────
-  function applyBoiler(cardId, valId, subId, sw, sys, state) {
-    const card = document.getElementById(cardId);
-    const valEl = document.getElementById(valId);
-    const subEl = document.getElementById(subId);
-
-    if (sw.output) {
-      card.className = 'card state-on';
-      const duration = sw.timer_duration ?? AUTO_OFF_DELAY;
-      if (sw.timer_started_at) {
-        state.remaining = Math.max(0, (sw.timer_started_at + duration) - sys.unixtime);
-        state.fetchedAt  = Date.now() / 1000;
-        valEl.textContent = fmt(state.remaining);
-        subEl.textContent = 'remaining';
-      } else {
-        state.remaining = null;
-        valEl.textContent = 'ON';
-        subEl.textContent = '';
-      }
-    } else {
-      card.className = 'card state-off';
+  // ── Extract boiler state from switch data ────────────────
+  function extractBoiler(sw, sys, state) {
+    if (!sw.output) {
       state.remaining = null;
-      valEl.textContent = 'OFF';
+      return { on: false, remaining: null };
+    }
+    const duration = sw.timer_duration ?? AUTO_OFF_DELAY;
+    if (sw.timer_started_at) {
+      const remaining = Math.max(0, (sw.timer_started_at + duration) - sys.unixtime);
+      state.remaining = remaining;
+      state.fetchedAt = Date.now() / 1000;
+      return { on: true, remaining };
+    }
+    state.remaining = null;
+    return { on: true, remaining: null };
+  }
+
+  // ── Update combined boiler card ──────────────────────────
+  function updateBoilerCard(b1, b2) {
+    const card   = document.getElementById('card-boiler');
+    const valEl  = document.getElementById('boiler-value');
+    const lblEl  = document.getElementById('boiler-label');
+    const subEl  = document.getElementById('boiler-sub');
+
+    const anyOn = b1?.on || b2?.on;
+
+    if (!anyOn) {
+      card.className      = 'card state-off';
+      lblEl.textContent   = 'Boiler';
+      valEl.textContent   = 'OFF';
+      subEl.textContent   = '';
+      return;
+    }
+
+    card.className = 'card state-on';
+
+    if (b1?.on && b2?.on)       lblEl.textContent = 'Boiler & Backup';
+    else if (b1?.on)            lblEl.textContent = 'Boiler';
+    else                        lblEl.textContent = 'Backup';
+
+    // Pick the larger remaining time
+    const r1 = b1?.on ? (b1.remaining ?? null) : null;
+    const r2 = b2?.on ? (b2.remaining ?? null) : null;
+    const best = (r1 != null && r2 != null) ? Math.max(r1, r2)
+               : (r1 != null) ? r1
+               : (r2 != null) ? r2
+               : null;
+
+    if (best != null) {
+      valEl.textContent = fmt(best);
+      subEl.textContent = 'remaining';
+    } else {
+      valEl.textContent = 'ON';
       subEl.textContent = '';
     }
   }
@@ -309,37 +392,26 @@
       setDot('dot-87', 'error');
     }
 
-    // Boiler 1
-    if (r76.status === 'fulfilled') {
-      const d = r76.value;
-      applyBoiler('card-timer1','timer1-value','timer1-sub', d['switch:0'], d.sys, boiler1);
-      setDot('dot-76', 'online');
-    } else {
-      document.getElementById('card-timer1').className = 'card';
-      document.getElementById('timer1-value').textContent = '—';
-      document.getElementById('timer1-sub').textContent   = '';
-      boiler1.remaining = null;
-      setDot('dot-76', 'error');
-    }
+    // Boilers
+    const b1 = r76.status === 'fulfilled'
+      ? extractBoiler(r76.value['switch:0'], r76.value.sys, boiler1)
+      : null;
+    const b2 = r77.status === 'fulfilled'
+      ? extractBoiler(r77.value['switch:0'], r77.value.sys, boiler2)
+      : null;
 
-    // Boiler 2
-    if (r77.status === 'fulfilled') {
-      const d = r77.value;
-      applyBoiler('card-timer2','timer2-value','timer2-sub', d['switch:0'], d.sys, boiler2);
-      const power = (r76.status === 'fulfilled' ? (r76.value['switch:0'].apower ?? 0) : 0)
-                  + (d['switch:0'].apower ?? 0);
-      const pEl   = document.getElementById('power-value');
-      const pCard = document.getElementById('card-power');
-      pEl.textContent   = power.toFixed(0);
-      pCard.className   = power > 10 ? 'card state-on' : 'card';
-      setDot('dot-77', 'online');
-    } else {
-      document.getElementById('card-timer2').className = 'card';
-      document.getElementById('timer2-value').textContent = '—';
-      document.getElementById('timer2-sub').textContent   = '';
-      boiler2.remaining = null;
-      setDot('dot-77', 'error');
-    }
+    if (r76.status === 'fulfilled') setDot('dot-76', 'online'); else { boiler1.remaining = null; setDot('dot-76', 'error'); }
+    if (r77.status === 'fulfilled') setDot('dot-77', 'online'); else { boiler2.remaining = null; setDot('dot-77', 'error'); }
+
+    updateBoilerCard(b1, b2);
+
+    // Power
+    const power = (r76.status === 'fulfilled' ? (r76.value['switch:0'].apower ?? 0) : 0)
+                + (r77.status === 'fulfilled' ? (r77.value['switch:0'].apower ?? 0) : 0);
+    const pEl   = document.getElementById('power-value');
+    const pCard = document.getElementById('card-power');
+    pEl.textContent = (power / 1000).toFixed(1);
+    pCard.className = power > 10 ? 'card state-on' : 'card';
 
     document.getElementById('last-update').textContent =
       new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
@@ -348,19 +420,26 @@
   // ── Live countdown tick ──────────────────────────────────
   function tick() {
     const now = Date.now() / 1000;
-    [
-      { s: boiler1, vid: 'timer1-value', sid: 'timer1-sub', cid: 'card-timer1' },
-      { s: boiler2, vid: 'timer2-value', sid: 'timer2-sub', cid: 'card-timer2' },
-    ].forEach(({ s, vid, sid, cid }) => {
-      if (s.remaining != null && s.fetchedAt != null) {
-        const left = Math.max(0, s.remaining - (now - s.fetchedAt));
-        document.getElementById(vid).textContent = fmt(left);
-        if (left === 0) {
-          document.getElementById(cid).className = 'card state-off';
-          document.getElementById(sid).textContent = '';
-        }
+    const card  = document.getElementById('card-boiler');
+    if (!card.classList.contains('state-on')) return;
+
+    const r1 = (boiler1.remaining != null && boiler1.fetchedAt != null)
+      ? Math.max(0, boiler1.remaining - (now - boiler1.fetchedAt)) : null;
+    const r2 = (boiler2.remaining != null && boiler2.fetchedAt != null)
+      ? Math.max(0, boiler2.remaining - (now - boiler2.fetchedAt)) : null;
+
+    const best = (r1 != null && r2 != null) ? Math.max(r1, r2)
+               : (r1 != null) ? r1
+               : (r2 != null) ? r2
+               : null;
+
+    if (best != null) {
+      document.getElementById('boiler-value').textContent = fmt(best);
+      if (best === 0) {
+        document.getElementById('card-boiler').className = 'card state-off';
+        document.getElementById('boiler-sub').textContent = '';
       }
-    });
+    }
   }
 
   // ── Weather ──────────────────────────────────────────────
@@ -437,26 +516,119 @@
       <polyline points="36,38 28,50 34,50 26,62"/>`,
   };
 
+  function getMoonPhase() {
+    const knownNew = new Date('2000-01-06T18:14:00Z');
+    const period   = 29.53058867;
+    const age = (((Date.now() - knownNew) / 86400000) % period + period) % period;
+    let name;
+    if (age <  1.85) name = 'New';
+    else if (age <  7.38) name = 'Waxing Crescent';
+    else if (age <  9.22) name = 'First Quarter';
+    else if (age < 14.77) name = 'Waxing Gibbous';
+    else if (age < 16.61) name = 'Full';
+    else if (age < 22.15) name = 'Waning Gibbous';
+    else if (age < 23.99) name = 'Last Quarter';
+    else name = 'Waning Crescent';
+    return [age, name];
+  }
+
+  function drawMoonSVG(age) {
+    const R = 32, cx = 40, cy = 40;
+    const period = 29.53058867;
+    const k = (1 - Math.cos(2 * Math.PI * age / period)) / 2;
+    const waxing = age < period / 2;
+    const tx = +(Math.abs(R * Math.cos(Math.PI * k))).toFixed(3);
+    // Tiny x-offsets break SVG antipodal-arc ambiguity (same-X start/end = undefined behaviour)
+    const xa = cx - 0.01, xb = cx + 0.01;
+
+    let litPath;
+    if (k > 0.94) {
+      litPath = `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#e8e8e8"/>`;
+    } else if (k < 0.03) {
+      litPath = '';
+    } else if (waxing) {
+      const sweep = k < 0.5 ? 0 : 1;
+      litPath = `<path d="M${xa} ${cy-R} A${R} ${R} 0 1 1 ${xb} ${cy+R} A${tx} ${R} 0 0 ${sweep} ${xa} ${cy-R}Z" fill="#e8e8e8"/>`;
+    } else {
+      const sweep = k < 0.5 ? 1 : 0;
+      litPath = `<path d="M${xb} ${cy-R} A${R} ${R} 0 1 0 ${xa} ${cy+R} A${tx} ${R} 0 0 ${sweep} ${xb} ${cy-R}Z" fill="#e8e8e8"/>`;
+    }
+
+    document.getElementById('moon-svg').innerHTML =
+      `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#0d0d0d" stroke="#333" stroke-width="1"/>` + litPath;
+  }
+
+  const WEATHER_COLORS = {
+    sunny:  '#f0c040',   // warm yellow
+    partly: '#c8a830',   // dimmer yellow (sun behind cloud)
+    cloudy: '#cccccc',   // white/grey
+    fog:    '#888888',   // muted grey
+    rain:   '#4a9eff',   // blue
+    snow:   '#a8d8ff',   // icy light blue
+    storm:  '#e04040',   // red (danger)
+  };
+
   function setWeatherIcon(type) {
-    document.getElementById('weather-svg').innerHTML = WEATHER_ICONS[type] ?? WEATHER_ICONS.cloudy;
+    const svg = document.getElementById('weather-svg');
+    svg.innerHTML = WEATHER_ICONS[type] ?? WEATHER_ICONS.cloudy;
+    svg.style.color = WEATHER_COLORS[type] ?? '#cccccc';
+  }
+
+  async function fetchHebrewDate() {
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate();
+    const today = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const convUrl = 'https://www.hebcal.com/converter?cfg=json&gy=' + y + '&gm=' + m + '&gd=' + d + '&g2h=1';
+    const calUrl  = 'https://www.hebcal.com/hebcal?v=1&cfg=json&maj=on&min=on&nx=on&mf=on&ss=on&i=off&year=' + y + '&month=' + m;
+    try {
+      const [convRes, calRes] = await Promise.allSettled([
+        fetchWithTimeout(convUrl, 8000),
+        fetchWithTimeout(calUrl,  8000),
+      ]);
+      if (convRes.status === 'fulfilled' && convRes.value.hd)
+        document.getElementById('hebrew-date').textContent =
+          convRes.value.hd + ' ' + convRes.value.hm + ' ' + convRes.value.hy;
+      const holEl = document.getElementById('jewish-holiday');
+      if (calRes.status === 'fulfilled' && calRes.value.items) {
+        const hit = calRes.value.items.find(e => e.date === today &&
+          ['holiday','roshchodesh','specialShabbat'].includes(e.category));
+        holEl.textContent = hit ? hit.title : '';
+      } else {
+        holEl.textContent = '';
+      }
+      setDot('dot-hc', convRes.status === 'fulfilled' ? 'online' : 'error');
+    } catch {
+      setDot('dot-hc', 'error');
+    }
   }
 
   async function pollWeather() {
     const url = 'https://api.open-meteo.com/v1/forecast'
-      + '?latitude=' + WEATHER_LAT
+      + '?latitude='  + WEATHER_LAT
       + '&longitude=' + WEATHER_LON
-      + '&daily=weathercode,temperature_2m_max,temperature_2m_min'
+      + '&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset'
+      + '&current=temperature_2m,weathercode'
       + '&timezone=Asia%2FJerusalem&forecast_days=1';
     try {
       const d = await fetchWithTimeout(url, 8000);
-      const code = d.daily.weathercode[0];
-      const tmax = d.daily.temperature_2m_max[0];
-      const tmin = d.daily.temperature_2m_min[0];
+      const code   = d.daily.weathercode[0];
+      const tmax   = d.daily.temperature_2m_max[0];
+      const tmin   = d.daily.temperature_2m_min[0];
+      const tcur   = d.current?.temperature_2m;
+      const sunrise = d.daily.sunrise[0]?.split('T')[1] ?? '—';
+      const sunset  = d.daily.sunset[0]?.split('T')[1]  ?? '—';
       const [desc, icon] = wmoLookup(code);
       setWeatherIcon(icon);
+      document.getElementById('weather-city').textContent = WEATHER_CITY;
       document.getElementById('weather-desc').textContent = desc;
+      document.getElementById('weather-cur').textContent  = tcur != null ? Math.round(tcur) : '—';
       document.getElementById('weather-min').textContent  = Math.round(tmin) + '°';
       document.getElementById('weather-max').textContent  = Math.round(tmax) + '°';
+      document.getElementById('weather-sunrise').textContent = sunrise;
+      document.getElementById('weather-sunset').textContent  = sunset;
+      const [moonAge, moonName] = getMoonPhase();
+      document.getElementById('moon-name').textContent = moonName + ' Moon';
+      drawMoonSVG(moonAge);
       setDot('dot-wx', 'online');
     } catch {
       setDot('dot-wx', 'error');
@@ -464,10 +636,15 @@
   }
 
   // ── Start ────────────────────────────────────────────────
+  const [initMoonAge, initMoonName] = getMoonPhase();
+  document.getElementById('moon-name').textContent = initMoonName + ' Moon';
+  drawMoonSVG(initMoonAge);
   pollShelly();
   pollWeather();
-  setInterval(pollShelly,  SHELLY_INTERVAL);
-  setInterval(pollWeather, WEATHER_INTERVAL);
+  fetchHebrewDate();
+  setInterval(pollShelly,   SHELLY_INTERVAL);
+  setInterval(pollWeather,  WEATHER_INTERVAL);
+  setInterval(fetchHebrewDate, WEATHER_INTERVAL); // re-check after sunset
   setInterval(tick, 1000);
 </script>
 </body>
