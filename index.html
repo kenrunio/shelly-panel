@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Shelly Panel</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #000;
+      --card-bg:  #0a0a0a;
+      --border:   #1a1a1a;
+      --label:    #555;
+      --unit:     #444;
+      --on-text:  #f0b040;
+      --on-icon:  #e8a020;
+      --off-text: #333;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      height: 100vh; /* fallback */
+    }
+
+    /* ── Main panel: 3 columns ── */
+    .panel {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      gap: 1px;
+      background: var(--border);
+      min-height: 0;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 1px;
+    }
+
+    .card {
+      flex: 1;
+      background: var(--card-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 10px 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .card-icon   { color: #333; flex-shrink: 0; }
+    .card-label  { font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; color: var(--label); }
+    .card-unit   { font-size: 16px; font-weight: 300; color: var(--unit); }
+    .card-sub    { font-size: 11px; color: var(--label); }
+
+    .value-row   { display: flex; align-items: baseline; gap: 3px; line-height: 1; }
+    .card-value  { font-size: 48px; font-weight: 100; letter-spacing: -2px; }
+    .card-value.md { font-size: 36px; letter-spacing: -1px; }
+
+    /* Boiler states */
+    .state-on  .card-value { color: var(--on-text); }
+    .state-on  .card-icon  { color: var(--on-icon); }
+    .state-off .card-value { color: var(--off-text); }
+
+    /* Weather card */
+    .weather-icon { color: #aaa; }
+    .weather-desc { font-size: 11px; color: #666; letter-spacing: 0.5px; text-transform: uppercase; }
+    .weather-range {
+      font-size: 32px; font-weight: 100; letter-spacing: -1px;
+      display: flex; align-items: baseline; gap: 8px;
+    }
+    .range-sep   { font-size: 20px; color: #333; }
+    .range-min   { color: #4a9eff; }
+    .range-max   { color: #ff6b4a; }
+
+    /* Status bar */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 14px 6px;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+    .dots { display: flex; gap: 6px; align-items: center; }
+    .dot  { width: 6px; height: 6px; border-radius: 50%; background: #222; transition: background 0.4s; }
+    .dot.online { background: #27ae60; }
+    .dot.error  { background: #c0392b; }
+    .last-update { font-size: 10px; color: #2a2a2a; }
+  </style>
+</head>
+<body>
+
+<div class="panel">
+
+  <!-- ── LEFT COLUMN: temperatures ── -->
+  <div class="col">
+
+    <div class="card" id="card-water">
+      <svg class="card-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+      </svg>
+      <div class="card-label">Water</div>
+      <div class="value-row">
+        <div class="card-value" id="water-temp">—</div>
+        <div class="card-unit">°C</div>
+      </div>
+    </div>
+
+    <div class="card" id="card-air">
+      <svg class="card-icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+      </svg>
+      <div class="card-label">Air</div>
+      <div class="value-row">
+        <div class="card-value" id="air-temp">—</div>
+        <div class="card-unit">°C</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── MIDDLE COLUMN: boiler timers + power ── -->
+  <div class="col">
+
+    <div class="card" id="card-timer1">
+      <svg class="card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <div class="card-label">Boiler</div>
+      <div class="value-row">
+        <div class="card-value md" id="timer1-value">—</div>
+      </div>
+      <div class="card-sub" id="timer1-sub"></div>
+    </div>
+
+    <div class="card" id="card-timer2">
+      <svg class="card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <div class="card-label">Backup</div>
+      <div class="value-row">
+        <div class="card-value md" id="timer2-value">—</div>
+      </div>
+      <div class="card-sub" id="timer2-sub"></div>
+    </div>
+
+    <div class="card" id="card-power">
+      <svg class="card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+      <div class="card-label">Power</div>
+      <div class="value-row">
+        <div class="card-value md" id="power-value">—</div>
+        <div class="card-unit">W</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT COLUMN: weather ── -->
+  <div class="col">
+
+    <div class="card" id="card-weather-icon">
+      <svg class="weather-icon" id="weather-svg" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <!-- filled by JS -->
+      </svg>
+      <div class="weather-desc" id="weather-desc">—</div>
+    </div>
+
+    <div class="card" id="card-weather-range">
+      <div class="card-label">Today</div>
+      <div class="weather-range">
+        <span class="range-min" id="weather-min">—</span>
+        <span class="range-sep">/</span>
+        <span class="range-max" id="weather-max">—</span>
+      </div>
+      <div class="card-sub">°C</div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ── Status bar ── -->
+<div class="status-bar">
+  <div class="dots">
+    <div class="dot" id="dot-87"></div>
+    <div class="dot" id="dot-76"></div>
+    <div class="dot" id="dot-77"></div>
+    <div class="dot" id="dot-wx"></div>
+  </div>
+  <div class="last-update" id="last-update"></div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────
+  const DEVICES = {
+    temp:    '192.168.68.87',
+    boiler1: '192.168.68.76',
+    boiler2: '192.168.68.77',
+  };
+  const AUTO_OFF_DELAY   = 4800;   // seconds, fallback
+  const SHELLY_INTERVAL  = 15000;  // ms
+  const WEATHER_INTERVAL = 20 * 60 * 1000; // 20 min
+
+  // Modiin-Maccabim-Re'ut, Israel
+  const WEATHER_LAT = 31.8969;
+  const WEATHER_LON = 35.0100;
+
+  // ── Countdown state ─────────────────────────────────────
+  let boiler1 = { remaining: null, fetchedAt: null };
+  let boiler2 = { remaining: null, fetchedAt: null };
+
+  // ── Helpers ─────────────────────────────────────────────
+  function fmt(sec) {
+    if (sec == null || sec < 0) sec = 0;
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    return m + ':' + String(s).padStart(2,'0');
+  }
+
+  function setDot(id, state) {
+    document.getElementById(id).className = 'dot ' + state;
+  }
+
+  async function fetchWithTimeout(url, ms) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function getShelly(ip) {
+    return fetchWithTimeout('http://' + ip + '/script/1/status', 5000);
+  }
+
+  // ── Boiler card update ───────────────────────────────────
+  function applyBoiler(cardId, valId, subId, sw, sys, state) {
+    const card = document.getElementById(cardId);
+    const valEl = document.getElementById(valId);
+    const subEl = document.getElementById(subId);
+
+    if (sw.output) {
+      card.className = 'card state-on';
+      const duration = sw.timer_duration ?? AUTO_OFF_DELAY;
+      if (sw.timer_started_at) {
+        state.remaining = Math.max(0, (sw.timer_started_at + duration) - sys.unixtime);
+        state.fetchedAt  = Date.now() / 1000;
+        valEl.textContent = fmt(state.remaining);
+        subEl.textContent = 'remaining';
+      } else {
+        state.remaining = null;
+        valEl.textContent = 'ON';
+        subEl.textContent = '';
+      }
+    } else {
+      card.className = 'card state-off';
+      state.remaining = null;
+      valEl.textContent = 'OFF';
+      subEl.textContent = '';
+    }
+  }
+
+  // ── Shelly poll ──────────────────────────────────────────
+  async function pollShelly() {
+    const [r87, r76, r77] = await Promise.allSettled([
+      getShelly(DEVICES.temp),
+      getShelly(DEVICES.boiler1),
+      getShelly(DEVICES.boiler2),
+    ]);
+
+    // Temperature
+    if (r87.status === 'fulfilled') {
+      const d = r87.value;
+      const w = d['temperature:100']?.tC;
+      const a = d['temperature:101']?.tC;
+      document.getElementById('water-temp').textContent = w != null ? w.toFixed(1) : '—';
+      document.getElementById('air-temp').textContent   = a != null ? a.toFixed(1) : '—';
+      setDot('dot-87', 'online');
+    } else {
+      document.getElementById('water-temp').textContent = '—';
+      document.getElementById('air-temp').textContent   = '—';
+      setDot('dot-87', 'error');
+    }
+
+    // Boiler 1
+    if (r76.status === 'fulfilled') {
+      const d = r76.value;
+      applyBoiler('card-timer1','timer1-value','timer1-sub', d['switch:0'], d.sys, boiler1);
+      setDot('dot-76', 'online');
+    } else {
+      document.getElementById('card-timer1').className = 'card';
+      document.getElementById('timer1-value').textContent = '—';
+      document.getElementById('timer1-sub').textContent   = '';
+      boiler1.remaining = null;
+      setDot('dot-76', 'error');
+    }
+
+    // Boiler 2
+    if (r77.status === 'fulfilled') {
+      const d = r77.value;
+      applyBoiler('card-timer2','timer2-value','timer2-sub', d['switch:0'], d.sys, boiler2);
+      const power = (r76.status === 'fulfilled' ? (r76.value['switch:0'].apower ?? 0) : 0)
+                  + (d['switch:0'].apower ?? 0);
+      const pEl   = document.getElementById('power-value');
+      const pCard = document.getElementById('card-power');
+      pEl.textContent   = power.toFixed(0);
+      pCard.className   = power > 10 ? 'card state-on' : 'card';
+      setDot('dot-77', 'online');
+    } else {
+      document.getElementById('card-timer2').className = 'card';
+      document.getElementById('timer2-value').textContent = '—';
+      document.getElementById('timer2-sub').textContent   = '';
+      boiler2.remaining = null;
+      setDot('dot-77', 'error');
+    }
+
+    document.getElementById('last-update').textContent =
+      new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+
+  // ── Live countdown tick ──────────────────────────────────
+  function tick() {
+    const now = Date.now() / 1000;
+    [
+      { s: boiler1, vid: 'timer1-value', sid: 'timer1-sub', cid: 'card-timer1' },
+      { s: boiler2, vid: 'timer2-value', sid: 'timer2-sub', cid: 'card-timer2' },
+    ].forEach(({ s, vid, sid, cid }) => {
+      if (s.remaining != null && s.fetchedAt != null) {
+        const left = Math.max(0, s.remaining - (now - s.fetchedAt));
+        document.getElementById(vid).textContent = fmt(left);
+        if (left === 0) {
+          document.getElementById(cid).className = 'card state-off';
+          document.getElementById(sid).textContent = '';
+        }
+      }
+    });
+  }
+
+  // ── Weather ──────────────────────────────────────────────
+  const WMO = {
+    0:  ['Clear',        'sunny'],
+    1:  ['Mainly Clear', 'partly'],
+    2:  ['Partly Cloudy','partly'],
+    3:  ['Overcast',     'cloudy'],
+    45: ['Fog',          'fog'],
+    48: ['Fog',          'fog'],
+    51: ['Light Drizzle','rain'],
+    53: ['Drizzle',      'rain'],
+    55: ['Drizzle',      'rain'],
+    61: ['Light Rain',   'rain'],
+    63: ['Rain',         'rain'],
+    65: ['Heavy Rain',   'rain'],
+    71: ['Light Snow',   'snow'],
+    73: ['Snow',         'snow'],
+    75: ['Heavy Snow',   'snow'],
+    80: ['Showers',      'rain'],
+    81: ['Showers',      'rain'],
+    82: ['Heavy Showers','rain'],
+    95: ['Thunderstorm', 'storm'],
+    96: ['Thunderstorm', 'storm'],
+    99: ['Thunderstorm', 'storm'],
+  };
+
+  function wmoLookup(code) {
+    return WMO[code] ?? WMO[Math.floor(code / 10) * 10] ?? ['—', 'cloudy'];
+  }
+
+  const WEATHER_ICONS = {
+    sunny: `
+      <circle cx="32" cy="32" r="12" stroke-width="2"/>
+      <line x1="32" y1="6"  x2="32" y2="12"/>
+      <line x1="32" y1="52" x2="32" y2="58"/>
+      <line x1="6"  y1="32" x2="12" y2="32"/>
+      <line x1="52" y1="32" x2="58" y2="32"/>
+      <line x1="13.5" y1="13.5" x2="17.7" y2="17.7"/>
+      <line x1="46.3" y1="46.3" x2="50.5" y2="50.5"/>
+      <line x1="50.5" y1="13.5" x2="46.3" y2="17.7"/>
+      <line x1="17.7" y1="46.3" x2="13.5" y2="50.5"/>`,
+    partly: `
+      <circle cx="24" cy="22" r="9" stroke-width="2"/>
+      <line x1="24" y1="8"  x2="24" y2="13"/>
+      <line x1="24" y1="31" x2="24" y2="36" opacity="0.4"/>
+      <line x1="10" y1="22" x2="15" y2="22"/>
+      <line x1="33" y1="22" x2="38" y2="22"/>
+      <line x1="13.5" y1="11.5" x2="17" y2="15"/>
+      <line x1="31" y1="29" x2="34.5" y2="32.5" opacity="0.4"/>
+      <line x1="34.5" y1="11.5" x2="31" y2="15"/>
+      <path d="M22 38 Q22 32 28 32 Q30 26 37 27 Q44 27 44 34 Q49 34 49 40 Q49 46 43 46 L24 46 Q17 46 17 40 Q17 37 22 38Z"/>`,
+    cloudy: `
+      <path d="M16 42 Q16 34 24 34 Q26 26 35 27 Q46 27 46 36 Q52 36 52 43 Q52 50 45 50 L20 50 Q12 50 12 43 Q12 40 16 42Z"/>`,
+    fog: `
+      <path d="M14 28 Q14 20 22 20 Q24 14 32 15 Q42 15 42 23 Q47 23 47 29" fill="none"/>
+      <line x1="10" y1="38" x2="54" y2="38"/>
+      <line x1="14" y1="46" x2="50" y2="46"/>
+      <line x1="18" y1="54" x2="46" y2="54"/>`,
+    rain: `
+      <path d="M16 32 Q16 24 24 24 Q26 16 35 17 Q46 17 46 26 Q52 26 52 33 Q52 40 45 40 L20 40 Q12 40 12 33 Q12 30 16 32Z"/>
+      <line x1="22" y1="46" x2="20" y2="54"/>
+      <line x1="32" y1="46" x2="30" y2="54"/>
+      <line x1="42" y1="46" x2="40" y2="54"/>`,
+    snow: `
+      <path d="M16 30 Q16 22 24 22 Q26 14 35 15 Q46 15 46 24 Q52 24 52 31 Q52 38 45 38 L20 38 Q12 38 12 31 Q12 28 16 30Z"/>
+      <circle cx="22" cy="50" r="2.5" fill="currentColor" stroke="none"/>
+      <circle cx="32" cy="50" r="2.5" fill="currentColor" stroke="none"/>
+      <circle cx="42" cy="50" r="2.5" fill="currentColor" stroke="none"/>
+      <circle cx="27" cy="58" r="2.5" fill="currentColor" stroke="none"/>
+      <circle cx="37" cy="58" r="2.5" fill="currentColor" stroke="none"/>`,
+    storm: `
+      <path d="M16 28 Q16 20 24 20 Q26 12 35 13 Q46 13 46 22 Q52 22 52 29 Q52 36 45 36 L20 36 Q12 36 12 29 Q12 26 16 28Z"/>
+      <polyline points="36,38 28,50 34,50 26,62"/>`,
+  };
+
+  function setWeatherIcon(type) {
+    document.getElementById('weather-svg').innerHTML = WEATHER_ICONS[type] ?? WEATHER_ICONS.cloudy;
+  }
+
+  async function pollWeather() {
+    const url = 'https://api.open-meteo.com/v1/forecast'
+      + '?latitude=' + WEATHER_LAT
+      + '&longitude=' + WEATHER_LON
+      + '&daily=weathercode,temperature_2m_max,temperature_2m_min'
+      + '&timezone=Asia%2FJerusalem&forecast_days=1';
+    try {
+      const d = await fetchWithTimeout(url, 8000);
+      const code = d.daily.weathercode[0];
+      const tmax = d.daily.temperature_2m_max[0];
+      const tmin = d.daily.temperature_2m_min[0];
+      const [desc, icon] = wmoLookup(code);
+      setWeatherIcon(icon);
+      document.getElementById('weather-desc').textContent = desc;
+      document.getElementById('weather-min').textContent  = Math.round(tmin) + '°';
+      document.getElementById('weather-max').textContent  = Math.round(tmax) + '°';
+      setDot('dot-wx', 'online');
+    } catch {
+      setDot('dot-wx', 'error');
+    }
+  }
+
+  // ── Start ────────────────────────────────────────────────
+  pollShelly();
+  pollWeather();
+  setInterval(pollShelly,  SHELLY_INTERVAL);
+  setInterval(pollWeather, WEATHER_INTERVAL);
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>
